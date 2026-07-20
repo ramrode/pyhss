@@ -2912,6 +2912,7 @@ class Diameter:
             remote_peer = OriginHost
         self.logTool.log(service='HSS', level='debug', message="[diameter.py] [Answer_16777216_300] [UAR] Remote Peer is " + str(remote_peer), redisClient=self.redisMessaging)
 
+        imsi = ""
         try:
             self.logTool.log(service='HSS', level='debug', message="Checking if username present", redisClient=self.redisMessaging)
             username = self.get_avp_data(avps, 1)[0]                                                     
