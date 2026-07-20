@@ -261,6 +261,8 @@ class Diameter:
         offset = 0
         output = ''
         matches = ['*', '#', 'a', 'b', 'c']
+        if not all(digit.isdigit() or digit in matches for digit in str(input)):
+            raise ValueError("TBCD_encode input contains non-TBCD characters: " + str(input))
         while offset < len(input):
             if len(input[offset:offset+2]) == 2:
                 self.logTool.log(service='HSS', level='debug', message="processing bits " + str(input[offset:offset+2]) + " at position offset " + str(offset), redisClient=self.redisMessaging)
@@ -2124,10 +2126,13 @@ class Diameter:
         subscription_data += self.generate_vendor_avp(1429, "c0", 10415, APN_Configuration_Profile + APN_Configuration)
 
         try:
-            self.logTool.log(service='HSS', level='debug', message="MSISDN is " + str(subscriber_details['msisdn']) + " - adding in ULA", redisClient=self.redisMessaging)
-            msisdn_avp = self.generate_vendor_avp(701, 'c0', 10415, self.TBCD_encode(str(subscriber_details['msisdn'])))                     #MSISDN
-            self.logTool.log(service='HSS', level='debug', message=msisdn_avp, redisClient=self.redisMessaging)
-            subscription_data += msisdn_avp
+            if subscriber_details.get('msisdn'):
+                self.logTool.log(service='HSS', level='debug', message="MSISDN is " + str(subscriber_details['msisdn']) + " - adding in ULA", redisClient=self.redisMessaging)
+                msisdn_avp = self.generate_vendor_avp(701, 'c0', 10415, self.TBCD_encode(str(subscriber_details['msisdn'])))                     #MSISDN
+                self.logTool.log(service='HSS', level='debug', message=msisdn_avp, redisClient=self.redisMessaging)
+                subscription_data += msisdn_avp
+            else:
+                self.logTool.log(service='HSS', level='debug', message="Subscriber has no MSISDN, not adding MSISDN AVP in ULA", redisClient=self.redisMessaging)
         except Exception as E:
             self.logTool.log(service='HSS', level='error', message="Failed to populate MSISDN in ULA due to error " + str(E), redisClient=self.redisMessaging)
 
@@ -4859,8 +4864,8 @@ class Diameter:
         #* [ Route-Record ]
         avp += self.generate_avp(282, "40", str(binascii.hexlify(b'localdomain'),'ascii'))
         
-        if "msisdn" in kwargs:
-            msisdn = kwargs['msisdn']
+        if kwargs.get("msisdn"):
+            msisdn = str(kwargs['msisdn'])
             msisdn = msisdn.replace('+', '')
             msisdn_avp = self.generate_vendor_avp(701, 'c0', 10415, self.TBCD_encode(str(msisdn)))                                             #MSISDN
             avp += self.generate_vendor_avp(700, "c0", 10415, msisdn_avp)                         #User-Identity
@@ -4933,8 +4938,8 @@ class Diameter:
             avp += self.generate_avp(1, 40, self.string_to_hex(str(kwargs.get('imsi'))))                                             #Username (IMSI)
         
         #MSISDN (Optional)
-        if 'msisdn' in kwargs:
-            avp += self.generate_vendor_avp(701, 'c0', 10415, self.TBCD_encode(str(kwargs.get('msisdn'))))                                             #Username (IMSI)
+        if kwargs.get('msisdn'):
+            avp += self.generate_vendor_avp(701, 'c0', 10415, self.TBCD_encode(str(kwargs.get('msisdn'))))                                             #MSISDN
 
         #GMLC Address
         avp += self.generate_vendor_avp(2405, 'c0', 10415, self.ip_to_hex('127.0.0.1'))                      #GMLC-Address
